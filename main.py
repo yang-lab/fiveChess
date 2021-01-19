@@ -124,7 +124,7 @@ class Game():
 
 	def setHalfGame(self):
 		self.mode = USER_VS_AI_MODE
-
+		self.useAI = True
 	def play(self):
 		self.clock.tick(60)
 		
