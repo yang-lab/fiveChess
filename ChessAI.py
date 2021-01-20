@@ -722,4 +722,13 @@ class ChessAI():
 			return CHESS_TYPE.SLEEP_TWO
 		
 		return CHESS_TYPE.NONE
-		
+
+	
+	def findBestChessByAlphaZero(self, mctsPlayer, board):
+		time1 = time.time()
+		move = mctsPlayer.get_action(board)
+		x = move // board.width
+		y = move % board.width
+		time2 = time.time()
+		#DEBUG(DEBUG_WARN, 'time[%.2f] %d(%d, %d), score[%d] alpha[%d] belta[%d] save[%d] cache[%d]' % ((time2-time1), self.number, x, y, score, self.alpha, self.belta, self.save_count, self.cacheGet))
+		return (x, y)

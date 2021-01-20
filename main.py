@@ -1,7 +1,12 @@
+from __future__ import print_function
 import pygame
 from pygame.locals import *
 from GameMap import *
 from ChessAI import *
+
+import pickle
+from mcts_alphaZero import MCTSPlayer
+from policy_value_net_numpy import PolicyValueNetNumpy
 
 
 class Button():
@@ -104,6 +109,7 @@ class Game():
 		self.is_play = False
 
 		self.map = Map(CHESS_LEN, CHESS_LEN)
+		self.alphaMap = AlphaMap(width=CHESS_LEN, height=CHESS_LEN, n_in_row=5)
 		self.player = MAP_ENTRY_TYPE.MAP_PLAYER_ONE
 		self.action = None
 		self.AI = ChessAI(CHESS_LEN)
@@ -116,7 +122,7 @@ class Game():
 		self.player = MAP_ENTRY_TYPE.MAP_PLAYER_ONE
 		self.AI.number = 0
 		self.map.reset()
-
+		self.alphaMap.init_board(0)
 		if (self.mode == USER_VS_AI_MODE and self.AI_first) or self.mode == AI_VS_AI_MODE:
 			self.useAI = True
 		else:
@@ -125,7 +131,8 @@ class Game():
 	def setHalfGame(self):
 		self.mode = USER_VS_AI_MODE
 		self.useAI = True
-	def play(self):
+		
+	def play(self, USE_ALPHA = True):
 		self.clock.tick(60)
 		
 		light_yellow = (247, 238, 214)
@@ -135,17 +142,24 @@ class Game():
 		self.showFont('Click HalfGame To Use AI', MAP_WIDTH + 20, SCREEN_HEIGHT//2-70, 20)
 		for button in self.buttons:
 			button.draw()
-		
+
 		if self.is_play and not self.isOver():
 			if self.useAI:
-				x, y = self.AI.findBestChess(self.map.map, self.player)
+				if USE_ALPHA:
+					x, y = self.AI.findBestChessByAlphaZero(USE_ALPHA, self.alphaMap)
+					self.alphaMap.do_move(x,y)
+				else:
+					x, y = self.AI.findBestChess(self.map.map, self.player)
 				self.checkClick(x, y, True)
+				
 				if self.mode == USER_VS_AI_MODE:
 					self.useAI = False
 			
 			if self.mode != AI_VS_AI_MODE:
 				if self.action is not None:
 					self.checkClick(self.action[0], self.action[1])
+					if USE_ALPHA:
+						self.alphaMap.do_move(self.action[0], self.action[1])
 					self.action = None
 					if self.mode == USER_VS_AI_MODE:
 						self.showAIThink()
@@ -222,8 +236,20 @@ class Game():
 				break
 			
 game = Game("FIVE CHESS " + GAME_VERSION, GAME_PLAY_MODE, AI_RUN_FIRST)
+model_file = 'best_policy_8_8_5.model'
+try:
+	policy_param = pickle.load(open(model_file, 'rb'))
+except:
+	policy_param = pickle.load(open(model_file, 'rb'),
+								encoding='bytes')  # To support python3
+best_policy = PolicyValueNetNumpy(CHESS_LEN, CHESS_LEN, policy_param)
+mcts_player = MCTSPlayer(best_policy.policy_value_fn,
+							c_puct=5,
+							n_playout=400)  # set larger n_playout for better performance
+
+
 while True:
-	game.play()
+	game.play(USE_ALPHA = mcts_player)
 	pygame.display.update()
 	
 	for event in pygame.event.get():
